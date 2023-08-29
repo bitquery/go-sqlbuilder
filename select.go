@@ -63,21 +63,22 @@ type LimitBy struct {
 type SelectBuilder struct {
 	Cond
 
-	distinct    bool
-	tables      []string
-	selectCols  []string
-	joinOptions []JoinOption
-	joinTables  []string
-	joinExprs   [][]string
-	whereExprs  []string
-	havingExprs []string
-	groupByCols []string
-	orderByCols []string
-	order       string
-	limit       int
-	offset      int
-	limitBy     *LimitBy
-	forWhat     string
+	distinct     bool
+	tables       []string
+	selectCols   []string
+	distinctCols []string
+	joinOptions  []JoinOption
+	joinTables   []string
+	joinExprs    [][]string
+	whereExprs   []string
+	havingExprs  []string
+	groupByCols  []string
+	orderByCols  []string
+	order        string
+	limit        int
+	offset       int
+	limitBy      *LimitBy
+	forWhat      string
 
 	args *Args
 
@@ -102,6 +103,14 @@ func (sb *SelectBuilder) Select(col ...string) *SelectBuilder {
 // Distinct marks this SELECT as DISTINCT.
 func (sb *SelectBuilder) Distinct() *SelectBuilder {
 	sb.distinct = true
+	sb.marker = selectMarkerAfterSelect
+	return sb
+}
+
+// Distinct marks this SELECT as DISTINCT ON given columns.
+func (sb *SelectBuilder) DistinctOn(col ...string) *SelectBuilder {
+	sb.distinct = true
+	sb.distinctCols = col
 	sb.marker = selectMarkerAfterSelect
 	return sb
 }
@@ -257,7 +266,13 @@ func (sb *SelectBuilder) BuildWithFlavor(flavor Flavor, initialArg ...interface{
 	buf.WriteString("SELECT ")
 
 	if sb.distinct {
-		buf.WriteString("DISTINCT ")
+		if len(sb.distinctCols) > 0 {
+			buf.WriteString("DISTINCT ON (")
+			buf.WriteString(strings.Join(sb.distinctCols, ", "))
+			buf.WriteString(") ")
+		} else {
+			buf.WriteString("DISTINCT ")
+		}
 	}
 
 	buf.WriteString(strings.Join(sb.selectCols, ", "))
