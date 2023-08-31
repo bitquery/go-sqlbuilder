@@ -57,6 +57,36 @@ func ExampleSelectBuilder() {
 	// [1234 %Du 1 2 5 86400 4 5]
 }
 
+func ExampleSelectBuilder_distinctOn() {
+	sb := NewSelectBuilder()
+	sb.DistinctOn("id").Select("id", "name", sb.As("COUNT(*)", "t"))
+	sb.From("demo.user")
+	sb.Where(
+		sb.GreaterThan("id", 1234),
+		sb.Like("name", "%Du"),
+		sb.Or(
+			sb.IsNull("id_card"),
+			sb.In("status", 1, 2, 5),
+		),
+		sb.NotIn(
+			"id",
+			NewSelectBuilder().Select("id").From("banned"),
+		), // Nested SELECT.
+		"modified_at > created_at + "+sb.Var(86400), // It's allowed to write arbitrary SQL.
+	)
+	sb.GroupBy("status").Having(sb.NotIn("status", 4, 5))
+	sb.OrderBy("modified_at").Asc()
+	sb.Limit(10).Offset(5)
+
+	s, args := sb.Build()
+	fmt.Println(s)
+	fmt.Println(args)
+
+	// Output:
+	// SELECT DISTINCT ON (id) id, name, COUNT(*) AS t FROM demo.user WHERE id > ? AND name LIKE ? AND (id_card IS NULL OR status IN (?, ?, ?)) AND id NOT IN (SELECT id FROM banned) AND modified_at > created_at + ? GROUP BY status HAVING status NOT IN (?, ?) ORDER BY modified_at ASC LIMIT 10 OFFSET 5
+	// [1234 %Du 1 2 5 86400 4 5]
+}
+
 func ExampleSelectBuilder_advancedUsage() {
 	sb := NewSelectBuilder()
 	innerSb := NewSelectBuilder()
